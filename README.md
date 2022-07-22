@@ -7,3 +7,4 @@
 * [AceButton](https://github.com/bxparks/AceButton)
 * [GxEPD2](https://github.com/ZinggJM/GxEPD2)
 * [u8g2](https://github.com/olikraus/u8g2)
+* [BSEC](https://github.com/BoschSensortec/BSEC-Arduino-library)

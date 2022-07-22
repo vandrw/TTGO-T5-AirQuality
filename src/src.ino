@@ -1,18 +1,23 @@
-#define LILYGO_T5_V213
-
-#include <boards.h>
 #include <GxEPD2_BW.h>
 #include <U8g2_for_Adafruit_GFX.h>
 #include <AceButton.h>
+#include <bsec.h>
 #include "display.h"
+#include "pages.h"
 
-const int BUTTON_PIN = 39;
+#define BUTTON_PIN 39
+#define BME_SCK 13
+#define BME_MISO 12
+#define BME_MOSI 11
+#define BME_CS 10
 
 using namespace ace_button;
 
 GxEPD2_BW<GxEPD2_213_B73, GxEPD2_213_B73::HEIGHT> display(GxEPD2_213_B73(/*CS=5*/ SS, /*DC=*/17, /*RST=*/16, /*BUSY=*/4)); // GDEH0213B73
 U8G2_FOR_ADAFRUIT_GFX u8g2;
 AceButton button(BUTTON_PIN);
+
+Bsec iaqSensor; // (BME_CS, BME_MOSI, BME_MISO, BME_SCK);
 
 uint8_t lastSelect = 0;
 
@@ -34,10 +39,26 @@ void setup()
     display.setRotation(1);
     display.setFullWindow();
 
-    displayInfoPage(lastSelect++);
+    // BME680 sensor
+    iaqSensor.begin(BME680_I2C_ADDR_SECONDARY, Wire);
+    bsec_virtual_sensor_t sensorList[5] = {
+        BSEC_OUTPUT_SENSOR_HEAT_COMPENSATED_TEMPERATURE,
+        BSEC_OUTPUT_SENSOR_HEAT_COMPENSATED_HUMIDITY,
+        BSEC_OUTPUT_IAQ,
+        BSEC_OUTPUT_CO2_EQUIVALENT,
+        BSEC_OUTPUT_BREATH_VOC_EQUIVALENT,
+    };
+
+    iaqSensor.updateSubscription(sensorList, 5, BSEC_SAMPLE_RATE_LP);
+
+    displayPage(lastSelect++);
 }
 
 void loop()
 {
     button.check();
+    if (!iaqSensor.run())
+    { // If no data is available
+        return;
+    }
 }
