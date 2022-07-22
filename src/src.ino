@@ -21,6 +21,13 @@ Bsec iaqSensor; // (BME_CS, BME_MOSI, BME_MISO, BME_SCK);
 
 uint8_t lastSelect = 0;
 
+// Save CO2 equivalent every 10s
+float co2History[100] = {0};
+unsigned long previousMillis = 0;
+uint16_t saveInterval = 10000;
+uint16_t histIndex = 99;
+bool buttonPressed = false;
+
 void setup()
 {
     // Incorporated button
@@ -51,14 +58,33 @@ void setup()
 
     iaqSensor.updateSubscription(sensorList, 5, BSEC_SAMPLE_RATE_LP);
 
-    displayPage(lastSelect++);
+    displayPage(lastSelect);
 }
 
 void loop()
 {
-    button.check();
     if (!iaqSensor.run())
     { // If no data is available
         return;
+    }
+
+    unsigned long currentMillis = millis();
+
+    if (currentMillis - previousMillis > saveInterval)
+    {
+        previousMillis = currentMillis;
+        co2History[histIndex--] = iaqSensor.co2Equivalent;
+
+        if (histIndex < 0)
+        {
+            histIndex = 99;
+        }
+    }
+
+    button.check();
+
+    if (buttonPressed) {
+        buttonPressed = false;
+        displayPage(lastSelect);
     }
 }

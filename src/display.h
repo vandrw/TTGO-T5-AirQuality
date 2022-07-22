@@ -14,6 +14,7 @@ extern GxEPD2_BW<GxEPD2_213_B73, GxEPD2_213_B73::HEIGHT> display;
 extern U8G2_FOR_ADAFRUIT_GFX u8g2;
 extern AceButton button;
 extern uint8_t lastSelect;
+extern bool buttonPressed;
 
 void displayText(const char *str, uint16_t y, uint8_t align, int16_t xOffset = 0)
 {
@@ -87,9 +88,17 @@ void displayPage(uint8_t num)
 
 void handleEvent(AceButton * /*button*/, uint8_t eventType, uint8_t /*buttonState*/)
 {
-    if (eventType == AceButton::kEventPressed)
-        displayPage(lastSelect++);
-    lastSelect %= PAGE_MAX;
+    switch(eventType)
+    {
+    case AceButton::kEventLongPressed:
+        buttonPressed = true;
+        break;
+    case AceButton::kEventPressed:
+        buttonPressed = true;
+        lastSelect++;
+        lastSelect %= PAGE_MAX;
+        break;
+    }
 }
 
 #endif /* DISPLAY_H */
