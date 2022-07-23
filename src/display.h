@@ -77,7 +77,6 @@ void displayPage(uint8_t num)
             displayInfo();
             break;
         case GRAPH_PAGE:
-            // drawBitmap(display, DEFALUT_QR_CODE_BMP, 10, 10, true);
             displayGraph();
             break;
         default:

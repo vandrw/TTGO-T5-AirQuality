@@ -2,17 +2,19 @@
 #include <U8g2_for_Adafruit_GFX.h>
 #include <AceButton.h>
 #include <bsec.h>
+#include <SPI.h>
 #include "display.h"
 #include "pages.h"
 
 #define BUTTON_PIN 39
-#define BME_SCK 13
-#define BME_MISO 12
-#define BME_MOSI 11
-#define BME_CS 10
+#define BME_SCK 14
+#define BME_MISO 2
+#define BME_MOSI 15
+#define BME_CS 13
 
 using namespace ace_button;
 
+SPIClass bmeSpi(HSPI);
 GxEPD2_BW<GxEPD2_213_B73, GxEPD2_213_B73::HEIGHT> display(GxEPD2_213_B73(/*CS=5*/ SS, /*DC=*/17, /*RST=*/16, /*BUSY=*/4)); // GDEH0213B73
 U8G2_FOR_ADAFRUIT_GFX u8g2;
 AceButton button(BUTTON_PIN);
@@ -46,17 +48,22 @@ void setup()
     display.setRotation(1);
     display.setFullWindow();
 
+    // SPI
+    bmeSpi.begin(BME_SCK, BME_MISO, BME_MOSI, BME_CS);
+
     // BME680 sensor
-    iaqSensor.begin(BME680_I2C_ADDR_SECONDARY, Wire);
-    bsec_virtual_sensor_t sensorList[5] = {
-        BSEC_OUTPUT_SENSOR_HEAT_COMPENSATED_TEMPERATURE,
-        BSEC_OUTPUT_SENSOR_HEAT_COMPENSATED_HUMIDITY,
+    iaqSensor.begin(BME_CS, bmeSpi);
+    bsec_virtual_sensor_t sensorList[7] = {
+        BSEC_OUTPUT_SENSOR_HEAT_COMPENSATED_TEMPERATURE, // deg C
+        BSEC_OUTPUT_SENSOR_HEAT_COMPENSATED_HUMIDITY,    // %
+        BSEC_OUTPUT_RAW_PRESSURE,                        // Pa
+        BSEC_OUTPUT_CO2_EQUIVALENT,                      // ppm
+        BSEC_OUTPUT_BREATH_VOC_EQUIVALENT,               // ppb
         BSEC_OUTPUT_IAQ,
-        BSEC_OUTPUT_CO2_EQUIVALENT,
-        BSEC_OUTPUT_BREATH_VOC_EQUIVALENT,
+        BSEC_OUTPUT_STABILIZATION_STATUS,
     };
 
-    iaqSensor.updateSubscription(sensorList, 5, BSEC_SAMPLE_RATE_LP);
+    iaqSensor.updateSubscription(sensorList, 7, BSEC_SAMPLE_RATE_LP);
 
     displayPage(lastSelect);
 }
@@ -83,7 +90,8 @@ void loop()
 
     button.check();
 
-    if (buttonPressed) {
+    if (buttonPressed)
+    {
         buttonPressed = false;
         displayPage(lastSelect);
     }

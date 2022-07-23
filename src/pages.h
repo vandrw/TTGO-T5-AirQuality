@@ -18,17 +18,45 @@ extern float co2History[100];
 
 void displayInfo(void)
 {
-    // TODO: draw bitmap based on CO2e or IAQ level
-    display.drawBitmap(15, 15, epd_bitmap_good, 100, 100, GxEPD_BLACK);
-    // display.drawBitmap(15, 15, epd_bitmap_bad, 100, 100, GxEPD_BLACK);
-    // display.drawBitmap(15, 15, epd_bitmap_meh, 100, 100, GxEPD_BLACK);
+    // Display bitmap based on Air Quality Index
+    if (iaqSensor.iaq < 50)
+    {
+        display.drawBitmap(15, 15, epd_bitmap_good, 100, 100, GxEPD_BLACK);
+    }
+    else if (iaqSensor.co2Equivalent < 100)
+    {
+        display.drawBitmap(15, 15, epd_bitmap_moderate, 100, 100, GxEPD_BLACK);
+    }
+    else
+    {
+        display.drawBitmap(15, 15, epd_bitmap_bad, 100, 100, GxEPD_BLACK);
+    }
 
-    String temp = String(String(30.55) + "\xB0");     // iaqSensor.temperature
-    String humidity = String(String(45.65) + "%");    // iaqSensor.humidity
-    String pressure = String(String(10.65) + " hPa"); // iaqSensor.pressure
-    String iaq = String(45.65);                       // iaqSensor.iaq
-    String co2 = String(500);                         // iaqSensor.co2Equivalent
-    String voc = String(0.50);                        // iaqSensor.breathVocEquivalent
+    // Display status of sensor
+    u8g2.setFont(u8g2_font_chikita_tr);
+    switch (iaqSensor.iaqAccuracy)
+    {
+    case 0:
+        displayText("Stabilizing", display.height() - 3, GxEPD_ALIGN_LEFT, 3);
+        break;
+    case 1:
+        displayText("Uncertain", display.height() - 3, GxEPD_ALIGN_LEFT, 3);
+        break;
+    case 2:
+        displayText("Calibrating", display.height() - 3, GxEPD_ALIGN_LEFT, 3);
+        break;
+    case 3:
+        displayText("Accurate", display.height() - 3, GxEPD_ALIGN_LEFT, 3);
+        break;
+    }
+
+    // Store sensor measurements and display them, alongside glyphs
+    String temp = String(String(iaqSensor.temperature) + '\xB0' + 'C'); // Temperature
+    String humidity = String(String(iaqSensor.humidity) + '%');         // Humidity
+    String pressure = String(String(iaqSensor.pressure) + " hPa");      // Pressure
+    String iaq = String(iaqSensor.iaq);                                 // Air Quality Index
+    String co2 = String(String(iaqSensor.co2Equivalent) + "ppm");       // CO2 Equivalent
+    String voc = String(String(iaqSensor.breathVocEquivalent) + "ppb"); // VOC Equivalent
 
     u8g2.setFont(u8g2_font_unifont_t_weather);
     displayGlyph(0x031, 34, GxEPD_ALIGN_RIGHT, 25); // Temperature
@@ -36,7 +64,7 @@ void displayInfo(void)
     u8g2.setFont(u8g2_font_unifont_t_77);
     displayGlyph(0x26b5, 57, GxEPD_ALIGN_RIGHT, 21); // Pressure
     u8g2.setFont(u8g2_font_prospero_bold_nbp_tr);
-    displayText("AirQ", 75, GxEPD_ALIGN_RIGHT, 5); // IAQ
+    displayText("AirQ", 75, GxEPD_ALIGN_RIGHT, 4); // IAQ
     displayText("CO2", 91, GxEPD_ALIGN_RIGHT, 7);  // CO2 Equivalent
     displayText("VOC", 106, GxEPD_ALIGN_RIGHT, 7); // VOC Equivalent
     u8g2.setFont(u8g2_font_10x20_tf);
@@ -55,9 +83,6 @@ void displayGraph(void)
     const uint16_t linesPad = 10;
     const uint16_t axisPad = 3;
 
-    display.drawFastHLine(linesPad, th - linesPad, tw - (2 * linesPad), GxEPD_BLACK); // Horizontal
-    display.drawFastVLine(linesPad, linesPad, th - (2 * linesPad), GxEPD_BLACK);      // Vertical
-
     float maxCO2 = 1.00;
     for (int i = 0; i < 100; i++)
     {
@@ -67,6 +92,10 @@ void displayGraph(void)
         }
     }
 
+    // Draw axes and labels
+    display.drawFastHLine(linesPad, th - linesPad, tw - (2 * linesPad), GxEPD_BLACK); // Horizontal
+    display.drawFastVLine(linesPad, linesPad, th - (2 * linesPad), GxEPD_BLACK);      // Vertical
+
     display.setRotation(0);
     u8g2.setFont(u8g2_font_chikita_tr);
     displayText("CO2e [ppm]", axisPad, GxEPD_ALIGN_CENTER, 0);
@@ -75,7 +104,8 @@ void displayGraph(void)
     displayText(String(maxCO2, 2).c_str(), linesPad + axisPad, GxEPD_ALIGN_LEFT, linesPad + axisPad);
     displayText("Time [min]", th - axisPad, GxEPD_ALIGN_CENTER, 0);
     displayText(String(100 * 10 / 60).c_str(), th - axisPad, GxEPD_ALIGN_RIGHT, axisPad);
-    // Draw the CO2 history plot
+
+    // Draw the CO2 history as a scatter plot
     // Origin is at (linesPad, th - linesPad)
     for (int i = 0; i < 100; i++)
     {
