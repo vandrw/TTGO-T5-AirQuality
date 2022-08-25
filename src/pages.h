@@ -53,27 +53,27 @@ void displayInfo(void)
     // Store sensor measurements and display them, alongside glyphs
     String temp = String(String(iaqSensor.temperature) + '\xB0' + 'C'); // Temperature
     String humidity = String(String(iaqSensor.humidity) + '%');         // Humidity
-    String pressure = String(String(iaqSensor.pressure) + " hPa");      // Pressure
+    String pressure = String(String(iaqSensor.pressure / 100) + "Pa");      // Pressure
     String iaq = String(iaqSensor.iaq);                                 // Air Quality Index
     String co2 = String(String(iaqSensor.co2Equivalent) + "ppm");       // CO2 Equivalent
     String voc = String(String(iaqSensor.breathVocEquivalent) + "ppb"); // VOC Equivalent
 
     u8g2.setFont(u8g2_font_unifont_t_weather);
-    displayGlyph(0x031, 34, GxEPD_ALIGN_RIGHT, 25); // Temperature
-    displayGlyph(0x032, 49, GxEPD_ALIGN_RIGHT, 25); // Humidty
+    displayGlyph(0x031, 34, GxEPD_ALIGN_CENTER, -6); // Temperature
+    displayGlyph(0x032, 49, GxEPD_ALIGN_CENTER, -6); // Humidty
     u8g2.setFont(u8g2_font_unifont_t_77);
-    displayGlyph(0x26b5, 57, GxEPD_ALIGN_RIGHT, 21); // Pressure
+    displayGlyph(0x26b5, 57, GxEPD_ALIGN_CENTER, -8); // Pressure
     u8g2.setFont(u8g2_font_prospero_bold_nbp_tr);
-    displayText("AirQ", 75, GxEPD_ALIGN_RIGHT, 4); // IAQ
-    displayText("CO2", 91, GxEPD_ALIGN_RIGHT, 7);  // CO2 Equivalent
-    displayText("VOC", 106, GxEPD_ALIGN_RIGHT, 7); // VOC Equivalent
+    displayText("AirQ", 75, GxEPD_ALIGN_CENTER, -4); // IAQ
+    displayText("CO2", 91, GxEPD_ALIGN_CENTER, -7);  // CO2 Equivalent
+    displayText("VOC", 106, GxEPD_ALIGN_CENTER, -7); // VOC Equivalent
     u8g2.setFont(u8g2_font_10x20_tf);
-    displayText(temp.c_str(), 30, GxEPD_ALIGN_RIGHT, 30);     // Temperature
-    displayText(humidity.c_str(), 46, GxEPD_ALIGN_RIGHT, 30); // Humidty
-    displayText(pressure.c_str(), 60, GxEPD_ALIGN_RIGHT, 30); // Pressure
-    displayText(iaq.c_str(), 75, GxEPD_ALIGN_RIGHT, 30);      // IAQ
-    displayText(co2.c_str(), 90, GxEPD_ALIGN_RIGHT, 30);      // CO2 Equivalent
-    displayText(voc.c_str(), 105, GxEPD_ALIGN_RIGHT, 30);     // VOC Equivalent
+    displayText(temp.c_str(), 30, GxEPD_ALIGN_LEFT, 150);     // Temperature
+    displayText(humidity.c_str(), 46, GxEPD_ALIGN_LEFT, 150); // Humidty
+    displayText(pressure.c_str(), 60, GxEPD_ALIGN_LEFT, 150); // Pressure
+    displayText(iaq.c_str(), 75, GxEPD_ALIGN_LEFT, 150);      // IAQ
+    displayText(co2.c_str(), 90, GxEPD_ALIGN_LEFT, 150);      // CO2 Equivalent
+    displayText(voc.c_str(), 105, GxEPD_ALIGN_LEFT, 150);     // VOC Equivalent
 }
 
 void displayGraph(void)
