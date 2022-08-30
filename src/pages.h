@@ -53,7 +53,7 @@ void displayInfo(void)
     // Store sensor measurements and display them, alongside glyphs
     String temp = String(String(iaqSensor.temperature) + '\xB0' + 'C'); // Temperature
     String humidity = String(String(iaqSensor.humidity) + '%');         // Humidity
-    String pressure = String(String(iaqSensor.pressure / 100) + "Pa");      // Pressure
+    String pressure = String(String(iaqSensor.pressure / 100) + "Pa");  // Pressure
     String iaq = String(iaqSensor.iaq);                                 // Air Quality Index
     String co2 = String(String(iaqSensor.co2Equivalent) + "ppm");       // CO2 Equivalent
     String voc = String(String(iaqSensor.breathVocEquivalent) + "ppb"); // VOC Equivalent
