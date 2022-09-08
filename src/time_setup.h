@@ -3,8 +3,8 @@
 
 #include <WiFi.h>
 
-const char *ssid = "ASK4 WiFi";
-const char *password = "";
+const char *ssid = "YOUR_SSD";
+const char *password = "YOUR_PASSWORD";
 
 const char *ntpServer1 = "europe.pool.ntp.org";
 const char *ntpServer2 = "nl.pool.ntp.org";
