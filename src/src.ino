@@ -1,51 +1,32 @@
 #include <GxEPD2_BW.h>
 #include <U8g2_for_Adafruit_GFX.h>
-#include <AceButton.h>
 #include <bsec.h>
 #include <Wire.h>
 #include <SD.h>
 #include <SPI.h>
+#include "time_setup.h"
 #include "display.h"
 #include "pages.h"
 #include "sensor.h"
 
-#define LOG(fmt, ...) (Serial.printf("%09llu: " fmt "\n", GetTimestamp(), ##__VA_ARGS__))
-
-#define BUTTON_PIN 39
 #define BME_SCL 22
 #define BME_SDA 21
 
-using namespace ace_button;
-
 GxEPD2_BW<GxEPD2_213_B73, GxEPD2_213_B73::HEIGHT> display(GxEPD2_213_B73(/*CS=5*/ SS, /*DC=*/17, /*RST=*/16, /*BUSY=*/4)); // GDEH0213B73
 U8G2_FOR_ADAFRUIT_GFX u8g2;
-AceButton button(BUTTON_PIN);
 SPIClass *cardSPI = NULL;
 
 // Create an object of the class Bsec
 Bsec iaqSensor;
 RTC_DATA_ATTR uint8_t sensor_state[BSEC_MAX_STATE_BLOB_SIZE] = {0};
 
-uint8_t lastSelect = 0;
-
-// Save CO2 equivalent every 10s
-float co2History[100] = {0};
-uint16_t histIndex = 99;
-bool buttonPressed = false;
-unsigned long previousMillis = 0;
-uint16_t saveInterval = 10000;
-
-// Refresh the display every 30 minutes
-unsigned long prevRefresh = 0;
-uint32_t displayInterval = 1800000;
+// Refresh the display every 60 minutes
+uint32_t displayInterval = 3600000;
 
 String output;
 
 void setup()
 {
-  // Incorporated button
-  pinMode(BUTTON_PIN, INPUT_PULLUP);
-  button.setEventHandler(handleEvent);
 
   // E-paper display
   display.init(115200);
@@ -60,6 +41,9 @@ void setup()
 
   // I2C
   Wire.begin(BME_SDA, BME_SCL);
+
+  // WiFi and Time
+  synchronizeClock();
 
   // SD Card
   cardSPI = new SPIClass(HSPI);
@@ -85,14 +69,14 @@ void setup()
   bsec_virtual_sensor_t sensorList[10] = {
       BSEC_OUTPUT_RAW_TEMPERATURE,                     // deg C
       BSEC_OUTPUT_SENSOR_HEAT_COMPENSATED_TEMPERATURE, // deg C
-      BSEC_OUTPUT_RAW_PRESSURE,                        // hPa
       BSEC_OUTPUT_RAW_HUMIDITY,                        // %
       BSEC_OUTPUT_SENSOR_HEAT_COMPENSATED_HUMIDITY,    // %
-      BSEC_OUTPUT_RAW_GAS,
-      BSEC_OUTPUT_IAQ,
-      BSEC_OUTPUT_STATIC_IAQ,
+      BSEC_OUTPUT_RAW_PRESSURE,                        // hPa
+      BSEC_OUTPUT_RAW_GAS,                             // Ohms
       BSEC_OUTPUT_CO2_EQUIVALENT,                      // ppm
       BSEC_OUTPUT_BREATH_VOC_EQUIVALENT,               // ppb
+      BSEC_OUTPUT_IAQ,
+      BSEC_OUTPUT_STATIC_IAQ,
   };
 
   iaqSensor.updateSubscription(sensorList, 10, BSEC_SAMPLE_RATE_ULP);
@@ -104,36 +88,53 @@ void setup()
 
 void loop()
 {
-  if (iaqSensor.run(GetTimestamp()))
-  {
-    output = String(GetTimestamp());
-    output += ", " + String(iaqSensor.temperature);
-    output += ", " + String(iaqSensor.humidity);
-    output += ", " + String(iaqSensor.pressure / 100);
-    output += ", " + String(iaqSensor.iaq);
-    output += ", " + String(iaqSensor.iaqAccuracy);
-    output += ", " + String(iaqSensor.co2Equivalent);
-    output += ", " + String(iaqSensor.breathVocEquivalent);
-    Serial.println(output);
+  int64_t timestamp = GetTimestamp();
+  struct tm tinf;
 
-    updateState(SD);
-    displayPage(lastSelect);
-    loadState(SD);
+  if (!getLocalTime(&tinf))
+  {
+    Serial.println("No time available yet");
+    return;
   }
 
-  // if (currentMillis - prevRefresh > displayInterval)
-  // {
-  //   prevRefresh = currentMillis;
-  //   if (iaqSensor.iaqAccuracy == 3)
-  //   {
-  //     displayPage(lastSelect);
-  //     loadState();
-  //   }
-  // }
+  if (iaqSensor.run(timestamp))
+  {
+    // Time, Temperature [°C], Raw temperature [°C], Relative humidity [%], Raw humidity [%],
+    // Pressure [Pa], IAQ, IAQ accuracy, Static IAQ, Static IAQ accuracy, CO2 Equivalent [ppm],
+    // Breath VOC Equivalent [ppb], Gas resistance [Ohms]
+    output = String(tinf.tm_mday) + "/" + String(tinf.tm_mon + 1) + "/" + String(tinf.tm_year + 1900);
+    output += " " + String(tinf.tm_hour) + ":" + String(tinf.tm_min) + ":";
+    if (tinf.tm_sec < 10)
+    {
+      output += "0";
+    }
+    output += String(tinf.tm_sec);
+    output += "," + String(iaqSensor.temperature);
+    output += "," + String(iaqSensor.rawTemperature);
+    output += "," + String(iaqSensor.humidity);
+    output += "," + String(iaqSensor.rawHumidity);
+    output += "," + String(iaqSensor.pressure / 100);
+    output += "," + String(iaqSensor.iaq);
+    output += "," + String(iaqSensor.iaqAccuracy);
+    output += "," + String(iaqSensor.staticIaq);
+    output += "," + String(iaqSensor.staticIaqAccuracy);
+    output += "," + String(iaqSensor.co2Equivalent);
+    output += "," + String(iaqSensor.breathVocEquivalent);
+    output += "," + String(iaqSensor.gasResistance);
+    appendRow(SD, output.c_str());
+    updateState(SD);
 
+    // Serial.println(output);
+  }
 
-  uint64_t time_us = ((iaqSensor.nextCall - GetTimestamp()) * 1000) - esp_timer_get_time();
-  Serial.printf("Deep sleep for %llu ms. BSEC next call at %llu ms.", time_us / 1000, iaqSensor.nextCall);
+  if (timestamp % displayInterval < 60000)
+  {
+    // Serial.println("Refreshing display");
+    displayPage(tinf);
+  }
+
+  uint64_t time_us = ((iaqSensor.nextCall - timestamp) * 1000) - esp_timer_get_time();
+  // Serial.printf("Deep sleep for %llu ms. BSEC next call at %llu ms.", time_us / 1000, iaqSensor.nextCall);
   esp_sleep_enable_timer_wakeup(time_us);
   esp_deep_sleep_start();
 }

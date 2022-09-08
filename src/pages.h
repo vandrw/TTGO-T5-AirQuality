@@ -14,16 +14,14 @@ extern GxEPD2_BW<GxEPD2_213_B73, GxEPD2_213_B73::HEIGHT> display;
 extern U8G2_FOR_ADAFRUIT_GFX u8g2;
 extern Bsec iaqSensor;
 
-extern float co2History[100];
-
-void displayInfo(void)
+void displayInfo(tm timeinfo)
 {
     // Display bitmap based on Air Quality Index
-    if (iaqSensor.iaq < 50)
+    if (iaqSensor.iaq < 100)
     {
         display.drawBitmap(15, 15, epd_bitmap_good, 100, 100, GxEPD_BLACK);
     }
-    else if (iaqSensor.co2Equivalent < 100)
+    else if (iaqSensor.co2Equivalent < 150)
     {
         display.drawBitmap(15, 15, epd_bitmap_moderate, 100, 100, GxEPD_BLACK);
     }
@@ -33,28 +31,30 @@ void displayInfo(void)
     }
 
     // Display status of sensor
+    String dispText = String(timeinfo.tm_hour) + ":" + String(timeinfo.tm_min);
     u8g2.setFont(u8g2_font_chikita_tr);
-    switch (iaqSensor.iaqAccuracy)
+    switch (iaqSensor.staticIaqAccuracy)
     {
     case 0:
-        displayText("Stabilizing", display.height() - 3, GxEPD_ALIGN_LEFT, 3);
+        dispText += " Recently started...";
         break;
     case 1:
-        displayText("Uncertain", display.height() - 3, GxEPD_ALIGN_LEFT, 3);
+        dispText += " Gathering samples...";
         break;
     case 2:
-        displayText("Calibrating", display.height() - 3, GxEPD_ALIGN_LEFT, 3);
+        dispText += " Calibrating...";
         break;
     case 3:
-        displayText("Accurate", display.height() - 3, GxEPD_ALIGN_LEFT, 3);
+        // displayText("Accurate", display.height() - 3, GxEPD_ALIGN_LEFT, 3);
         break;
     }
+    displayText(dispText.c_str(), display.height() - 3, GxEPD_ALIGN_LEFT, 3);
 
     // Store sensor measurements and display them, alongside glyphs
     String temp = String(String(iaqSensor.temperature) + '\xB0' + 'C'); // Temperature
     String humidity = String(String(iaqSensor.humidity) + '%');         // Humidity
     String pressure = String(String(iaqSensor.pressure / 100) + "Pa");  // Pressure
-    String iaq = String(iaqSensor.iaq);                                 // Air Quality Index
+    String iaq = String(iaqSensor.staticIaq);                           // Air Quality Index
     String co2 = String(String(iaqSensor.co2Equivalent) + "ppm");       // CO2 Equivalent
     String voc = String(String(iaqSensor.breathVocEquivalent) + "ppb"); // VOC Equivalent
 
@@ -76,19 +76,19 @@ void displayInfo(void)
     displayText(voc.c_str(), 105, GxEPD_ALIGN_LEFT, 150);     // VOC Equivalent
 }
 
-void displayGraph(void)
+void displayGraph(float *history)
 {
     const uint16_t tw = display.width();
     const uint16_t th = display.height();
     const uint16_t linesPad = 10;
     const uint16_t axisPad = 3;
 
-    float maxCO2 = 1.00;
+    float maxVal = 1.00;
     for (int i = 0; i < 100; i++)
     {
-        if (co2History[i] > maxCO2)
+        if (history[i] > maxVal)
         {
-            maxCO2 = co2History[i];
+            maxVal = history[i];
         }
     }
 
@@ -101,7 +101,7 @@ void displayGraph(void)
     displayText("CO2e [ppm]", axisPad, GxEPD_ALIGN_CENTER, 0);
 
     display.setRotation(1);
-    displayText(String(maxCO2, 2).c_str(), linesPad + axisPad, GxEPD_ALIGN_LEFT, linesPad + axisPad);
+    displayText(String(maxVal, 2).c_str(), linesPad + axisPad, GxEPD_ALIGN_LEFT, linesPad + axisPad);
     displayText("Time [min]", th - axisPad, GxEPD_ALIGN_CENTER, 0);
     displayText(String(100 * 10 / 60).c_str(), th - axisPad, GxEPD_ALIGN_RIGHT, axisPad);
 
@@ -110,7 +110,7 @@ void displayGraph(void)
     for (int i = 0; i < 100; i++)
     {
         uint16_t x = (i * (tw - (2 * linesPad)) / 100) + linesPad + 1;
-        uint16_t y = th - linesPad - 1 - ((co2History[i] / maxCO2) * (th - (2 * linesPad)));
+        uint16_t y = th - linesPad - 1 - ((history[i] / maxVal) * (th - (2 * linesPad)));
         display.drawPixel(x, y, GxEPD_BLACK);
     }
 }

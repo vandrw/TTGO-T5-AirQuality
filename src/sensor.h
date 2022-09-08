@@ -64,7 +64,8 @@ void triggerLeds(void)
   delay(100);
 }
 
-int64_t GetTimestamp() {
+int64_t GetTimestamp()
+{
   struct timeval tv;
   gettimeofday(&tv, NULL);
   return (tv.tv_sec * 1000LL + (tv.tv_usec / 1000LL));
@@ -78,7 +79,7 @@ void loadState(fs::FS &f)
   if (file.read() == BSEC_MAX_STATE_BLOB_SIZE)
   {
     // Existing state in SD card
-    Serial.println("Reading state from SD card");
+    // Serial.println("Reading state from SD card");
 
     byte_count = file.read(sensor_state, BSEC_MAX_STATE_BLOB_SIZE);
 
@@ -90,7 +91,8 @@ void loadState(fs::FS &f)
     iaqSensor.setState(sensor_state);
     checkIaqSensorStatus();
     file.close();
-  } else
+  }
+  else
   {
     Serial.println("No state found on the SD card.");
   }
@@ -112,6 +114,38 @@ void updateState(fs::FS &f)
     Serial.println("Error writing state to SD card");
   }
 
+  file.close();
+}
+
+void appendRow(fs::FS &fs, const char *message)
+{
+  File file;
+  if (fs.exists("/temperature.csv"))
+  {
+    file = fs.open("/temperature.csv", FILE_APPEND);
+    if (!file)
+    {
+      Serial.println("Failed to open file for appending");
+    }
+  }
+  else
+  {
+    Serial.println("Creating temperature.csv");
+    file = fs.open("/temperature.csv", FILE_WRITE);
+    if (file)
+    {
+      file.println("Time,Temperature [°C],Raw temperature [°C],Relative humidity [%],Raw humidity [%],Pressure [Pa],IAQ,IAQ accuracy,Static IAQ,Static IAQ accuracy, CO2 Equivalent [ppm],Breath VOC Equivalent [ppb], Gas resistance [Ohms]");
+    }
+  }
+
+  if (file.println(message))
+  {
+    // Serial.println("Message appended");
+  }
+  else
+  {
+    Serial.println("Append failed");
+  }
   file.close();
 }
 
